@@ -1,7 +1,7 @@
 'use strict';
 /* =========================================================
  * 健身教练排课 - 单页应用
- * 数据保存在 localStorage；支持 JSON 导出/导入
+ * 数据保存在 IndexedDB（旧 localStorage 数据自动迁移）；支持 JSON 导出/导入
  * ========================================================= */
 
 /* ---------------- DOM 工具 ---------------- */
@@ -42,24 +42,88 @@ function relLabel(s) {
 }
 function lessonRange(l) { return `${hm(l.start)} - ${hm(l.end)}`; }
 
-/* ---------------- 数据层 ---------------- */
-const STORE_KEY = 'fitcoach_data_v1';
+/* ---------------- 数据层（IndexedDB，附 localStorage 一次性迁移） ---------------- */
+const STORE_KEY = 'fitcoach_data_v1';   // 旧 localStorage 键：仅用于迁移
+const IDB_NAME = 'fitcoach';
+const IDB_STORE = 'kv';
+const IDB_KEY = 'state';
+
 function defaultDB() { return { members: [], lessons: [], settings: { defaultDuration: 60 } }; }
-let db = loadDB();
-function loadDB() {
+function normalizeDB(d) {
+  const def = defaultDB();
+  if (!d || !Array.isArray(d.members) || !Array.isArray(d.lessons)) return def;
+  return {
+    members: d.members, lessons: d.lessons,
+    settings: Object.assign({ defaultDuration: 60 }, d.settings || {})
+  };
+}
+
+let db = defaultDB();   // 异步加载真实数据后替换，见底部 init()
+
+/** 打开（或创建）IndexedDB */
+function openIDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(IDB_NAME, 1);
+    req.onupgradeneeded = () => {
+      if (!req.result.objectStoreNames.contains(IDB_STORE)) req.result.createObjectStore(IDB_STORE);
+    };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+/** 简单封装：读取 */
+async function idbGet(key) {
+  const conn = await openIDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const rq = conn.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).get(key);
+      rq.onsuccess = () => resolve(rq.result);
+      rq.onerror = () => reject(rq.error);
+    });
+  } finally { conn.close(); }
+}
+/** 简单封装：写入 */
+async function idbSet(key, val) {
+  const conn = await openIDB();
+  try {
+    return await new Promise((resolve, reject) => {
+      const tx = conn.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).put(val, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  } finally { conn.close(); }
+}
+
+async function loadDB() {
+  // 1) 优先读 IndexedDB
+  try {
+    const stored = await idbGet(IDB_KEY);
+    if (stored) return normalizeDB(stored);
+  } catch (e) { console.warn('IndexedDB 读取失败，尝试旧数据迁移', e); }
+  // 2) 首次升级：从旧 localStorage 一次性迁移，成功后移除旧键
   try {
     const raw = localStorage.getItem(STORE_KEY);
-    if (!raw) return defaultDB();
-    const d = JSON.parse(raw);
-    if (!d || !Array.isArray(d.members) || !Array.isArray(d.lessons)) return defaultDB();
-    d.settings = Object.assign({ defaultDuration: 60 }, d.settings || {});
-    return d;
-  } catch { return defaultDB(); }
+    if (raw) {
+      const migrated = normalizeDB(JSON.parse(raw));
+      await idbSet(IDB_KEY, migrated);
+      localStorage.removeItem(STORE_KEY);
+      console.info('已从 localStorage 迁移到 IndexedDB');
+      return migrated;
+    }
+  } catch (e) { console.warn('旧数据迁移失败', e); }
+  return defaultDB();
 }
+
 let saveTimer = null;
-function save() {
+function save() {   // 调用方式与旧版一致：异步落盘，无需 await
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(() => localStorage.setItem(STORE_KEY, JSON.stringify(db)), 50);
+  saveTimer = setTimeout(() => {
+    idbSet(IDB_KEY, db).catch(err => {
+      console.error('保存失败', err);
+      toast('数据保存失败：' + (err && err.message ? err.message : err));
+    });
+  }, 50);
 }
 function getMember(id) { return db.members.find(m => m.id === id) || null; }
 function memberName(l) { return (l && l.memberName) || '已删除会员'; }
@@ -992,7 +1056,7 @@ $('#btn-export').addEventListener('click', () => {
   const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
   const a = h('a', {
     href: URL.createObjectURL(blob),
-    download: `fitcoach-backup-${dateToStr(new Date())}-${pad(new Date().getHours())}${pad(new Date().getMinutes())}.json`
+    download: `backup-${dateToStr(new Date())}.json`
   });
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(a.href), 2000);
@@ -1009,13 +1073,10 @@ $('#import-file').addEventListener('change', async e => {
     if (!data || !Array.isArray(data.members) || !Array.isArray(data.lessons)) throw new Error('bad');
     confirmSheet({
       title: '导入备份？',
-      desc: `将用备份覆盖当前数据：${data.members.length} 位会员、${data.lessons.length} 条排课。此操作不可撤销，建议先导出当前数据。`,
+      desc: `这会覆盖当前所有数据，确定吗？备份包含 ${data.members.length} 位会员、${data.lessons.length} 条排课，建议先导出当前数据。`,
       okText: '确认覆盖导入',
       onOk: () => {
-        db = {
-          members: data.members, lessons: data.lessons,
-          settings: Object.assign({ defaultDuration: 60 }, data.settings || {})
-        };
+        db = normalizeDB(data);
         save();
         calCursor = new Date(); selectedDate = todayStr();
         renderSchedule(); renderMembers(); renderStats();
@@ -1071,7 +1132,10 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
 }
 
-/* ---------- 启动 ---------- */
-renderSchedule();
-renderStats();
-welcome();
+/* ---------- 启动：先加载 IndexedDB 数据，再渲染 ---------- */
+(async function init() {
+  db = await loadDB();
+  renderSchedule();
+  renderStats();
+  welcome();
+})();

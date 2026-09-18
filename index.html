@@ -9,7 +9,8 @@
 <!-- PWA / 添加到主屏幕 -->
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -89,11 +90,11 @@
     </div>
 
     <div class="setting-card">
-      <div class="setting-title">数据备份（localStorage）</div>
-      <p class="setting-desc">数据只保存在本设备浏览器中，清除浏览器数据会丢失，请定期导出备份。</p>
+      <div class="setting-title">数据备份（IndexedDB 本地数据库）</div>
+      <p class="setting-desc">数据保存在本机浏览器的 IndexedDB 中，容量更大、更不容易被系统清理。换手机、恢复出厂或清除浏览器数据前，请先导出备份。</p>
       <div class="setting-actions">
-        <button class="primary-btn" id="btn-export">导出 JSON 备份</button>
-        <button class="secondary-btn" id="btn-import">导入 JSON 备份</button>
+        <button class="primary-btn" id="btn-export">导出备份</button>
+        <button class="secondary-btn" id="btn-import">导入备份</button>
         <input type="file" id="import-file" accept="application/json,.json" hidden>
       </div>
     </div>
@@ -103,7 +104,7 @@
       <button class="danger-btn" id="btn-clear">清空全部数据</button>
     </div>
 
-    <p class="app-version">健身教练排课 · 数据保存在本机</p>
+    <p class="app-version">健身教练排课 · 数据仅保存在本机浏览器，换手机或清缓存前请先导出备份</p>
   </section>
 
 </main>

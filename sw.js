@@ -1,6 +1,6 @@
 /* 健身教练排课 - Service Worker
  * 缓存应用外壳，支持离线打开 / 添加到主屏幕 */
-const CACHE = 'fitcoach-v2';
+const CACHE = 'fitcoach-v3';
 const ASSETS = [
   './',
   './index.html',
@@ -8,7 +8,12 @@ const ASSETS = [
   './app.js',
   './manifest.webmanifest',
   './icons/icon.svg',
-  './icons/icon-maskable.svg'
+  './icons/icon-maskable.svg',
+  './icons/icon-192.png',
+  './icons/icon-512.png',
+  './icons/icon-192-maskable.png',
+  './icons/icon-512-maskable.png',
+  './icons/apple-touch-icon.png'
 ];
 
 self.addEventListener('install', e => {
