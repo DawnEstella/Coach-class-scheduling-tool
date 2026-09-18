@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+<title>健身教练排课</title>
+<meta name="theme-color" content="#1f6feb">
+<meta name="description" content="移动端健身教练排课工具：会员管理、对话排课、冲突检测、课时扣减">
+<!-- PWA / 添加到主屏幕 -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon.svg">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="教练排课">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topbar">
+  <h1 id="topbar-title">课表</h1>
+  <div id="topbar-right"></div>
+</header>
+
+<main id="main">
+
+  <!-- ========== 课表：日历 + 当天列表 ========== -->
+  <section class="view" id="view-schedule">
+    <div class="calendar-wrap">
+      <div class="cal-header">
+        <button class="icon-btn" id="cal-prev" aria-label="上个月">‹</button>
+        <div class="cal-title" id="cal-title"></div>
+        <button class="icon-btn" id="cal-next" aria-label="下个月">›</button>
+      </div>
+      <div class="cal-weekdays">
+        <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+      </div>
+      <div class="cal-grid" id="cal-grid"></div>
+    </div>
+
+    <div class="day-strip" id="day-strip"></div>
+
+    <div class="day-section">
+      <div class="day-section-title" id="day-title"></div>
+      <div id="day-lessons" class="lesson-list"></div>
+    </div>
+
+    <button class="fab" id="fab-book" aria-label="对话排课">＋</button>
+  </section>
+
+  <!-- ========== 对话排课 ========== -->
+  <section class="view" id="view-chat" hidden>
+    <div class="chat-log" id="chat-log"></div>
+    <div class="chat-chips" id="chat-chips">
+      <button class="chip" data-text="今天有什么课">今天课表</button>
+      <button class="chip" data-text="明天有课吗">明天有课吗</button>
+      <button class="chip" data-text="帮我约课">帮我约课</button>
+      <button class="chip" data-text="帮助">帮助</button>
+    </div>
+    <form class="chat-input-bar" id="chat-form">
+      <input type="text" id="chat-input" placeholder="例如：明天下午3点给张三排一节私教"
+             autocomplete="off" enterkeyhint="send">
+      <button type="submit" class="send-btn" aria-label="发送">发送</button>
+    </form>
+  </section>
+
+  <!-- ========== 会员管理 ========== -->
+  <section class="view" id="view-members" hidden>
+    <div class="members-toolbar">
+      <input type="search" id="member-search" class="search-input" placeholder="搜索姓名 / 手机号">
+      <button class="primary-btn" id="btn-add-member">＋ 新会员</button>
+    </div>
+    <div id="member-list" class="member-list"></div>
+  </section>
+
+  <!-- ========== 设置 / 备份 ========== -->
+  <section class="view" id="view-settings" hidden>
+    <div class="stats-grid" id="stats-grid"></div>
+
+    <div class="setting-card">
+      <div class="setting-title">默认课程时长（分钟）</div>
+      <div class="seg" id="seg-duration">
+        <button data-val="30">30</button>
+        <button data-val="45">45</button>
+        <button data-val="60">60</button>
+        <button data-val="90">90</button>
+      </div>
+    </div>
+
+    <div class="setting-card">
+      <div class="setting-title">数据备份（localStorage）</div>
+      <p class="setting-desc">数据只保存在本设备浏览器中，清除浏览器数据会丢失，请定期导出备份。</p>
+      <div class="setting-actions">
+        <button class="primary-btn" id="btn-export">导出 JSON 备份</button>
+        <button class="secondary-btn" id="btn-import">导入 JSON 备份</button>
+        <input type="file" id="import-file" accept="application/json,.json" hidden>
+      </div>
+    </div>
+
+    <div class="setting-card danger-zone">
+      <div class="setting-title">危险操作</div>
+      <button class="danger-btn" id="btn-clear">清空全部数据</button>
+    </div>
+
+    <p class="app-version">健身教练排课 · 数据保存在本机</p>
+  </section>
+
+</main>
+
+<!-- 底部导航 -->
+<nav class="tabbar">
+  <button class="tab active" data-view="schedule">
+    <span class="tab-ico">📅</span><span>课表</span>
+  </button>
+  <button class="tab" data-view="chat">
+    <span class="tab-ico">💬</span><span>排课</span>
+  </button>
+  <button class="tab" data-view="members">
+    <span class="tab-ico">👤</span><span>会员</span>
+  </button>
+  <button class="tab" data-view="settings">
+    <span class="tab-ico">⚙️</span><span>设置</span>
+  </button>
+</nav>
+
+<!-- 弹窗容器 -->
+<div id="modal-root"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script src="app.js"></script>
+</body>
+</html>
